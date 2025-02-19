@@ -47,6 +47,7 @@ publications:
   - topic: /fmu/out/vehicle_trajectory_waypoint_desired
     type: px4_msgs::msg::VehicleTrajectoryWaypoint
 
+# added by Seppe
   - topic: /fmu/out/battery_status
     type: px4_msgs::msg::BatteryStatus
 

@@ -50,6 +50,9 @@ publications:
 # added by Seppe
   - topic: /fmu/out/battery_status
     type: px4_msgs::msg::BatteryStatus
+  
+  - topic: /fmu/out/vehicle_air_data
+    type: px4_msgs::msg::VehicleAirData
 
 subscriptions:
 

@@ -54,6 +54,10 @@ publications:
   - topic: /fmu/out/vehicle_air_data
     type: px4_msgs::msg::VehicleAirData
 
+# added by the kooz
+  - topic: /fmu/out/distance_sensor
+    type: px4_msgs::msg::DistanceSensor
+
 subscriptions:
 
   - topic: /fmu/in/offboard_control_mode

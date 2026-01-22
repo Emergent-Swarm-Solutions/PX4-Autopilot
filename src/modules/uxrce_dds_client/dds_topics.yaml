@@ -58,6 +58,10 @@ publications:
   - topic: /fmu/out/distance_sensor
     type: px4_msgs::msg::DistanceSensor
 
+# added by Stijn
+  - topic: /fmu/out/sensor_mag
+    type: px4_msgs::msg::SensorMag
+
 subscriptions:
 
   - topic: /fmu/in/offboard_control_mode

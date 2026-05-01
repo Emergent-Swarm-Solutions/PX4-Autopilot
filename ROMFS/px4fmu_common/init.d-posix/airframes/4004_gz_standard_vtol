@@ -85,10 +85,10 @@ param set-default FW_THR_MIN 0.1
 param set-default FW_T_CLMB_MAX 8
 param set-default FW_T_SINK_MAX 4.0
 param set-default FW_T_SINK_MIN 1.5
-param set-default FW_AIRSPD_MAX 25    # Aerogrid config
-param set-default FW_AIRSPD_MIN 18    # Aerogrid config
-param set-default FW_AIRSPD_TRIM 21   # Aerogrid config
-param set-default FW_AIRSPD_STALL 16  # Aerogrid config
+param set-default FW_AIRSPD_MAX 25    # AG config
+param set-default FW_AIRSPD_MIN 19    # AG config
+param set-default FW_AIRSPD_TRIM 21   # AG config
+param set-default FW_AIRSPD_STALL 16  # AG config
 param set-default FW_R_LIM 45
 
 param set-default MC_AIRMODE 1

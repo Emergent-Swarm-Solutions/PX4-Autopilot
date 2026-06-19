@@ -31,37 +31,50 @@
 #
 ############################################################################
 
-project(px4_gz_plugins)
+# project(AirSpeedPlugin)
 
-if(NOT DEFINED ENV{GZ_DISTRO} OR NOT "$ENV{GZ_DISTRO}"  STREQUAL "harmonic")
-    find_package(gz-transport NAMES gz-transport14 gz-transport13)
-    find_package(gz-sim NAMES gz-sim9 gz-sim8)
-    find_package(gz-sensors NAMES gz-sensors9 gz-sensors8)
-    find_package(gz-plugin NAMES gz-plugin3 gz-plugin2 COMPONENTS register)
-else()
-    find_package(gz-transport NAMES gz-transport13)
-    find_package(gz-sim NAMES gz-sim8)
-    find_package(gz-sensors NAMES gz-sensors8)
-    find_package(gz-plugin NAMES gz-plugin2 COMPONENTS register)
-endif()
 
-if (gz-transport_FOUND)
-    # Create a flat output directory for all plugin libraries
-    set(PX4_GZ_PLUGIN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}" CACHE PATH "Directory for all Gazebo plugin libraries")
-    file(MAKE_DIRECTORY ${PX4_GZ_PLUGIN_OUTPUT_DIR})
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PX4_GZ_PLUGIN_OUTPUT_DIR})
+# add_library(${PROJECT_NAME} SHARED
+#     AirSpeed.cpp
+# )
 
-    # Add our plugins as subdirectories
-    add_subdirectory(optical_flow)
-    add_subdirectory(template_plugin)
-    add_subdirectory(gstreamer)
-    add_subdirectory(moving_platform_controller)
-    add_subdirectory(airspeed)
+# target_link_libraries(${PROJECT_NAME}
+#     PUBLIC px4_gz_msgs
+#     PUBLIC ${GZ_SENSORS_TARGET}
+#     PUBLIC ${GZ_PLUGIN_TARGET}
+#     PUBLIC ${GZ_SIM_TARGET}
+#     PUBLIC ${GZ_TRANSPORT_TARGET}
+# )
 
-    # Add an alias target for each plugin
-    if (TARGET GstCameraSystem)
-        add_custom_target(px4_gz_plugins ALL DEPENDS OpticalFlowSystem MovingPlatformController TemplatePlugin GstCameraSystem AirSpeedPlugin)
-    else()
-        add_custom_target(px4_gz_plugins ALL DEPENDS OpticalFlowSystem MovingPlatformController TemplatePlugin AirSpeedPlugin)
-    endif()
+# target_include_directories(${PROJECT_NAME}
+#     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+#     PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
+#     PUBLIC px4_gz_msgs
+# )
+
+# if (NOT CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+#     install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib/px4_gz_plugins)
+# endif()
+
+project(AirSpeedPlugin)
+
+add_library(${PROJECT_NAME} SHARED
+    AirSpeed.cpp
+)
+
+target_link_libraries(${PROJECT_NAME}
+    PUBLIC px4_gz_msgs
+    PUBLIC gz-sensors${gz-sensors_VERSION_MAJOR}::gz-sensors${gz-sensors_VERSION_MAJOR}
+    PUBLIC gz-plugin${gz-plugin_VERSION_MAJOR}::gz-plugin${gz-plugin_VERSION_MAJOR}
+    PUBLIC gz-sim${gz-sim_VERSION_MAJOR}::gz-sim${gz-sim_VERSION_MAJOR}
+    PUBLIC gz-transport${gz-transport_VERSION_MAJOR}::gz-transport${gz-transport_VERSION_MAJOR}
+)
+
+target_include_directories(${PROJECT_NAME}
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+    PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+if (NOT CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib/px4_gz_plugins)
 endif()

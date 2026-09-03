@@ -286,14 +286,21 @@ void UxrceddsClient::run()
 
 		uint8_t request_status;
 
+		// The agent can need more than the second given here to create the
+		// participant. Treat it like a lost connection: drop the session,
+		// wait, ping again. Returning here ended the client for good.
 		if (!uxr_run_session_until_all_status(&session, 1000, &participant_req, &request_status, 1)) {
-			PX4_ERR("create entities failed: participant: %i", request_status);
-			return;
+			PX4_ERR("create entities failed: participant: %i, retrying", request_status);
+			uxr_delete_session_retries(&session, 0);
+			px4_usleep(1000000);
+			continue;
 		}
 
 		if (!_pubs->init(&session, reliable_out, reliable_in, best_effort_in, participant_id, _client_namespace)) {
-			PX4_ERR("pubs init failed");
-			return;
+			PX4_ERR("pubs init failed, retrying");
+			uxr_delete_session_retries(&session, 0);
+			px4_usleep(1000000);
+			continue;
 		}
 
 		_connected = true;

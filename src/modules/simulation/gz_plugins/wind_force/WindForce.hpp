@@ -80,10 +80,12 @@ private:
 
 	// Combined drag-area coefficient (Cd * A) [m^2] of a simple isotropic drag
 	// model: F = 0.5 * rho * (Cd*A) * |v_rel| * v_rel, in world frame, where
-	// v_rel = wind_velocity - vehicle_velocity. This is a rough placeholder -
-	// tune it (or override per-vehicle via the <drag_area_coefficient> SDF tag)
-	// against your airframe's real frontal area and drag coefficient.
-	float _drag_area_coefficient{0.5f};
+	// v_rel = wind_velocity - vehicle_velocity. This is on top of whatever
+	// drag the airframe's own aerodynamic surfaces (e.g. LiftDrag) already
+	// model, so keep it small relative to those - tune it (or override
+	// per-vehicle via the <drag_area_coefficient> SDF tag) against the
+	// airframe's real frontal area and drag coefficient.
+	float _drag_area_coefficient{0.08f};
 	float _air_density{1.225f}; // [kg/m^3], sea level
 
 	// World Z [m] above which wind force is applied. Below it the vehicle is

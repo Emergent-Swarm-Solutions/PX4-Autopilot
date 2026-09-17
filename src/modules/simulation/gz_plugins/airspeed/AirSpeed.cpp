@@ -89,12 +89,16 @@ void AirSpeed::Configure(const gz::sim::Entity &entity,
 	_node.Subscribe(wind_topic, &AirSpeed::windCallback, this);
 
 	if (sdf->HasElement("wind_velocity")) {
-		_wind_velocity = sdf->Get<gz::math::Vector3d>("wind_velocity");
+		const gz::math::Vector3d wind_velocity = sdf->Get<gz::math::Vector3d>("wind_velocity");
+		{
+			std::lock_guard<std::mutex> lock(_wind_velocity_mutex);
+			_wind_velocity = wind_velocity;
+		}
 
 		gzmsg << "Airspeed::Configure: Using SDF wind_velocity = ["
-			<< _wind_velocity.X() << ", "
-			<< _wind_velocity.Y() << ", "
-			<< _wind_velocity.Z() << "]" << std::endl;
+			<< wind_velocity.X() << ", "
+			<< wind_velocity.Y() << ", "
+			<< wind_velocity.Z() << "]" << std::endl;
 	} else {
 		gzerr << "Airspeed::Configure: No plugin wind_velocity specified. "
 			<< "Using wind_info topic / default [0, 0, 0]." << std::endl;
@@ -136,8 +140,14 @@ void AirSpeed::PreUpdate(const gz::sim::UpdateInfo &_info,
 
 	// Calculate differential pressure + noise in hPa
 	const float diff_pressure_noise = standard_normal_distribution_(random_generator_) * diff_pressure_stddev_;
+	gz::math::Vector3d wind_velocity;
+	{
+		std::lock_guard<std::mutex> lock(_wind_velocity_mutex);
+		wind_velocity = _wind_velocity;
+	}
+
 	// Body-relateive air velocity
-	gz::math::Vector3d air_relative_velocity = _vehicle_velocity - _wind_velocity;
+	gz::math::Vector3d air_relative_velocity = _vehicle_velocity - wind_velocity;
 	gz::math::Vector3d body_velocity = _vehicle_attitude.RotateVectorReverse(air_relative_velocity);
 	// Calculate differential pressure in hPa
 	double diff_pressure = sign(body_velocity.X()) * 0.005 * (double)air_density  * body_velocity.X() * body_velocity.X() +
@@ -149,5 +159,7 @@ void AirSpeed::PreUpdate(const gz::sim::UpdateInfo &_info,
 
 void AirSpeed::windCallback(const gz::msgs::Wind &msg)
 {
+	// Called from a gz-transport subscriber thread, not the simulation update thread.
+	std::lock_guard<std::mutex> lock(_wind_velocity_mutex);
 	_wind_velocity = gz::math::Vector3d(msg.linear_velocity().x(), msg.linear_velocity().y(), msg.linear_velocity().z());
 }

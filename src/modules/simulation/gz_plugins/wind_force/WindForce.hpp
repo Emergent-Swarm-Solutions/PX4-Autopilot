@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2025 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2026 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,26 +38,21 @@
 #include <gz/sim/Model.hh>
 #include <gz/sim/World.hh>
 #include <gz/sim/System.hh>
-#include "gz/sim/components/LinearVelocity.hh"
 #include <gz/msgs/wind.pb.h>
 
 #include <gz/transport/Node.hh>
 
 #include <mutex>
-#include <random>
 
 namespace px4
 {
 
-static constexpr float DEFAULT_HOME_ALT_AMSL = 488.0; // altitude AMSL at Irchel Park, Zurich, Switzerland [m]
-
-// international standard atmosphere (troposphere model - valid up to 11km) see [1]
-static constexpr float TEMPERATURE_MSL = 288.15; // temperature at MSL [K] (15 [C])
-static constexpr float PRESSURE_MSL = 101325.0; // pressure at MSL [Pa]
-static constexpr float LAPSE_RATE = 0.0065; // reduction in temperature with altitude for troposphere [K/m]
-static constexpr float AIR_DENSITY_MSL = 1.225; // air density at MSL [kg/m^3]
-
-class AirSpeed:
+// Standalone replacement for gz-sim's built-in WindEffects system: that system
+// never acts on this vehicle (its base_link has no <enable_wind> flag), and its
+// force model isn't independently documented/tunable. This applies a plain drag
+// force so scripted wind (see wind_scenarios.py in gzsim_bridge repository) actually
+// pushes the airframe, not just the AirSpeed sensor reading.
+class WindForce:
 	public gz::sim::System,
 	public gz::sim::ISystemPreUpdate,
 	public gz::sim::ISystemConfigure
@@ -77,22 +72,26 @@ private:
 	gz::sim::Model _model{gz::sim::kNullEntity};
 	gz::sim::Entity _link_entity;
 	gz::sim::Link _link;
-	gz::sim::Entity _world_entity;
-	gz::sim::World _world;
 
 	gz::transport::Node _node;
-	gz::transport::Node::Publisher _pub;
 
-	gz::math::Quaterniond _vehicle_attitude;
-	gz::math::Vector3d _vehicle_velocity{0., 0., 0.};
-	gz::math::Vector3d _vehicle_position{0., 0., 0.};
 	gz::math::Vector3d _wind_velocity{0., 0., 0.};
 	std::mutex _wind_velocity_mutex;
 
-	std::default_random_engine random_generator_;
-	std::normal_distribution<float> standard_normal_distribution_;
+	// Combined drag-area coefficient (Cd * A) [m^2] of a simple isotropic drag
+	// model: F = 0.5 * rho * (Cd*A) * |v_rel| * v_rel, in world frame, where
+	// v_rel = wind_velocity - vehicle_velocity. This is a rough placeholder -
+	// tune it (or override per-vehicle via the <drag_area_coefficient> SDF tag)
+	// against your airframe's real frontal area and drag coefficient.
+	float _drag_area_coefficient{0.5f};
+	float _air_density{1.225f}; // [kg/m^3], sea level
 
-	float diff_pressure_stddev_{0.01f}; // [hPa]
-	float _alt_home{DEFAULT_HOME_ALT_AMSL};
+	// World Z [m] above which wind force is applied. Below it the vehicle is
+	// treated as resting on the ground: real ground friction/landing gear keep
+	// it in place there, not aerodynamic drag, and this plain drag model has no
+	// notion of contact or PX4 arming state to tell the two situations apart.
+	// Override per-vehicle via <min_height_for_wind> - set it a little above
+	// the airframe's resting base_link height.
+	float _min_height_for_wind{0.3f};
 };
 } // end namespace px4

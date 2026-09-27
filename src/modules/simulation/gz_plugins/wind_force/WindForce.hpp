@@ -11,20 +11,17 @@
 #include <gz/sim/Model.hh>
 #include <gz/sim/World.hh>
 #include <gz/sim/System.hh>
-#include <gz/msgs/wind.pb.h>
-
-#include <gz/transport/Node.hh>
-
-#include <mutex>
+#include "gz/sim/components/LinearVelocity.hh"
+#include "gz/sim/components/Wind.hh"
 
 namespace px4
 {
 
-// Standalone replacement for gz-sim's built-in WindEffects system: that system
-// never acts on this vehicle (its base_link has no <enable_wind> flag), and its
-// force model isn't independently documented/tunable. This applies a plain drag
-// force so scripted wind (see wind_scenarios.py in gzsim_bridge repository) actually
-// pushes the airframe, not just the AirSpeed sensor reading.
+// Fuselage/body drag relative to the air mass. gz-sim's WindEffects applies no force to this vehicle (its
+// base_link has no <enable_wind> flag) and its force model isn't independently tunable, so this applies a
+// plain drag force instead. The wind is read from gz's world wind entity - the same air LiftDrag, rotor drag
+// and the AirSpeed sensor use - which WindEffects updates from /world/<world>/wind (see wind_scenarios.py in
+// the gzsim_bridge repository).
 class WindForce:
 	public gz::sim::System,
 	public gz::sim::ISystemPreUpdate,
@@ -38,7 +35,6 @@ public:
 		       const std::shared_ptr<const sdf::Element> &sdf,
 		       gz::sim::EntityComponentManager &ecm,
 		       gz::sim::EventManager &eventMgr) override;
-	void windCallback(const gz::msgs::Wind &msg);
 
 private:
 	gz::sim::Entity _entity;
@@ -46,10 +42,7 @@ private:
 	gz::sim::Entity _link_entity;
 	gz::sim::Link _link;
 
-	gz::transport::Node _node;
-
-	gz::math::Vector3d _wind_velocity{0., 0., 0.};
-	std::mutex _wind_velocity_mutex;
+	gz::sim::Entity _wind_entity{gz::sim::kNullEntity};
 
 	// Combined drag-area coefficient (Cd * A) [m^2] of a simple isotropic drag
 	// model: F = 0.5 * rho * (Cd*A) * |v_rel| * v_rel, in world frame, where

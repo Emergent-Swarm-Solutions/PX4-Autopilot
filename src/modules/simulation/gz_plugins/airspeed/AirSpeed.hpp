@@ -39,17 +39,14 @@
 #include <gz/sim/World.hh>
 #include <gz/sim/System.hh>
 #include "gz/sim/components/LinearVelocity.hh"
-#include <gz/msgs/wind.pb.h>
+#include "gz/sim/components/Wind.hh"
 
 #include <gz/transport/Node.hh>
 
-#include <mutex>
 #include <random>
 
 namespace px4
 {
-
-static constexpr float DEFAULT_HOME_ALT_AMSL = 488.0; // altitude AMSL at Irchel Park, Zurich, Switzerland [m]
 
 // international standard atmosphere (troposphere model - valid up to 11km) see [1]
 static constexpr float TEMPERATURE_MSL = 288.15; // temperature at MSL [K] (15 [C])
@@ -70,7 +67,6 @@ public:
 		       const std::shared_ptr<const sdf::Element> &sdf,
 		       gz::sim::EntityComponentManager &ecm,
 		       gz::sim::EventManager &eventMgr) override;
-	void windCallback(const gz::msgs::Wind &msg);
 
 private:
 	gz::sim::Entity _entity;
@@ -86,13 +82,15 @@ private:
 	gz::math::Quaterniond _vehicle_attitude;
 	gz::math::Vector3d _vehicle_velocity{0., 0., 0.};
 	gz::math::Vector3d _vehicle_position{0., 0., 0.};
-	gz::math::Vector3d _wind_velocity{0., 0., 0.};
-	std::mutex _wind_velocity_mutex;
+
+	// gz's world wind entity: the one air mass every aerodynamic model in the world reads (LiftDrag, rotor
+	// drag, WindForce). WindEffects updates it from /world/<world>/wind.
+	gz::sim::Entity _wind_entity{gz::sim::kNullEntity};
 
 	std::default_random_engine random_generator_;
 	std::normal_distribution<float> standard_normal_distribution_;
 
 	float diff_pressure_stddev_{0.01f}; // [hPa]
-	float _alt_home{DEFAULT_HOME_ALT_AMSL};
+	float _alt_home{0.0f};
 };
 } // end namespace px4

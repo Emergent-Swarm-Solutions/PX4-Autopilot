@@ -84,29 +84,16 @@ void AirSpeed::Configure(const gz::sim::Entity &entity,
 				     "/link/airspeed_link/sensor/air_speed/air_speed";
 	_pub = _node.Advertise<gz::msgs::AirSpeed>(airspeed_topic);
 
-	std::string wind_topic = "/world/" + world_name + "/wind_info";
+	_wind_entity = ecm.EntityByComponents(gz::sim::components::Wind());
 
-	_node.Subscribe(wind_topic, &AirSpeed::windCallback, this);
-
-	if (sdf->HasElement("wind_velocity")) {
-		const gz::math::Vector3d wind_velocity = sdf->Get<gz::math::Vector3d>("wind_velocity");
-		{
-			std::lock_guard<std::mutex> lock(_wind_velocity_mutex);
-			_wind_velocity = wind_velocity;
-		}
-
-		gzmsg << "Airspeed::Configure: Using SDF wind_velocity = ["
-			<< wind_velocity.X() << ", "
-			<< wind_velocity.Y() << ", "
-			<< wind_velocity.Z() << "]" << std::endl;
-	} else {
-		gzerr << "Airspeed::Configure: No plugin wind_velocity specified. "
-			<< "Using wind_info topic / default [0, 0, 0]." << std::endl;
+	if (sdf->HasElement("reference_altitude")) {
+		_alt_home = sdf->Get<float>("reference_altitude");
 	}
 
-	gz::common::Console::SetVerbosity(1);
+	gzmsg << "Airspeed::Configure: reference_altitude=" << _alt_home
+	      << " m, wind from the world wind entity" << std::endl;
 
-	///TODO: Read sdf for altitude home position
+	gz::common::Console::SetVerbosity(1);
 }
 
 void AirSpeed::PreUpdate(const gz::sim::UpdateInfo &_info,
@@ -140,10 +127,16 @@ void AirSpeed::PreUpdate(const gz::sim::UpdateInfo &_info,
 
 	// Calculate differential pressure + noise in hPa
 	const float diff_pressure_noise = standard_normal_distribution_(random_generator_) * diff_pressure_stddev_;
-	gz::math::Vector3d wind_velocity;
-	{
-		std::lock_guard<std::mutex> lock(_wind_velocity_mutex);
-		wind_velocity = _wind_velocity;
+
+	if (_wind_entity == gz::sim::kNullEntity) {
+		_wind_entity = _ecm.EntityByComponents(gz::sim::components::Wind());
+	}
+
+	gz::math::Vector3d wind_velocity{0., 0., 0.};
+	const auto *wind = _ecm.Component<gz::sim::components::WorldLinearVelocity>(_wind_entity);
+
+	if (wind != nullptr) {
+		wind_velocity = wind->Data();
 	}
 
 	// Body-relateive air velocity
@@ -154,12 +147,8 @@ void AirSpeed::PreUpdate(const gz::sim::UpdateInfo &_info,
 			       (double)diff_pressure_noise;
 	gz::msgs::AirSpeed airspeed_msg;
 	airspeed_msg.set_diff_pressure(diff_pressure * 100.0);
+	// GZBridge converts this to Celsius and PX4 uses it for air density, including the barometer's. Left
+	// unset it reads 0 K, which PX4 clamps to -60 C, making the air ~35% too dense.
+	airspeed_msg.set_temperature(temperature_local);
 	_pub.Publish(airspeed_msg);
-}
-
-void AirSpeed::windCallback(const gz::msgs::Wind &msg)
-{
-	// Called from a gz-transport subscriber thread, not the simulation update thread.
-	std::lock_guard<std::mutex> lock(_wind_velocity_mutex);
-	_wind_velocity = gz::math::Vector3d(msg.linear_velocity().x(), msg.linear_velocity().y(), msg.linear_velocity().z());
 }
